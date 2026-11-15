@@ -113,8 +113,7 @@ METHODS = [
           "inference API (exact IDs as listed). qwen3.8-27b and deepseek-v4-flash produce hidden reasoning tokens before "
           "answering; gemma-4-31b-it does not. If a temperature-0 answer cannot be parsed (gemma-4-31b-it occasionally "
           "degenerates into a repeated token), it is re-queried once at temperature 0.3 and flagged; responses that still "
-          "fail are dropped. A larger Qwen model was tried and dropped because it exhausted its token budget on hidden "
-          "reasoning without answering."),
+          "fail are dropped (models tried and dropped are listed in Appendix B)."),
     ("h3", "3.4 Metrics"),
     ("p", "**Cue effect.** For prompt *i* and cue *c*, Δ = P(variant) − P(original). We report the mean effect *of the "
           "cue’s presence* on P(eval) (sign-flipped for removals, so positive always means “this cue makes a prompt look "
@@ -122,8 +121,7 @@ METHODS = [
           "**Additivity.** We compare the joint (*all*) edit with the sum of single-cue effects. **Stated vs causal.** "
           f"Each listed reason is tagged by a classifier ({CLASSIFIER}, five responses per call, temperature 0) with "
           "every applicable label among the cue families, “AI-as-topic” and “other content” (a line such as “lettered "
-          "options and an Answer: label” names two cues). Both GLM models we tried as classifiers returned empty "
-          "outputs after exhausting their token budget on hidden reasoning. For each (prompt, cue) pair we record whether the cue was named "
+          "options and an Answer: label” names two cues). For each (prompt, cue) pair we record whether the cue was named "
           "in the reasons given on the version that contains it, and whether editing it moved P(eval) by ≥ 10 points. We "
           "report mention rate, causal rate, P(causal | mentioned) (precision of stated tells) and P(mentioned | causal) "
           "(recall)."),
@@ -157,6 +155,9 @@ REFS = [
 
 PROMPTS_APPX = [
     ("h3", "Appendix B. Verbatim prompts"),
+    ("p", "**Models tried and dropped.** qwen3.5-397b (as a judge) and glm-5.2 / glm-5.3-flash (as the reason classifier) "
+          "exhausted their output-token budgets (2,000–8,000 tokens) on hidden reasoning and returned empty answers; the "
+          "hosted API exposes no way to cap reasoning. All three were replaced before any results were computed."),
     ("p", "**Judge wrapper** (the message replaces {msg}); followed by the mode-specific tail."),
     ("pre", PR["HEAD"].rstrip()),
     ("p", "**num tail:**"), ("pre", PR["TAIL"]["num"]),
@@ -315,7 +316,7 @@ RESULTS = [
               "*Sufficient*: share of real prompts where adding the cue alone moves P(eval) ≥ 10 points. Effects in "
               "percentage points; n = 54–60 items per cell unless shown.",
      ["Cue", "Removed from evals", "Added to real prompts", "Stated", "Necessary", "Sufficient"], TABLE2,
-     [1.35, 1.45, 1.45, 0.65, 0.8, 0.8]),
+     [1.45, 1.55, 1.6, 0.6, 0.75, 0.75]),
     ("p", f"**Safety evaluations stay recognisable without any surface cue.** The joint edit lowers P(eval) by "
           f"{rng([E[m]['eval-mmlupro:all']['cue_effect'] for m in JUDGES])} points on MMLU-Pro items but only "
           f"{rng([E[m]['eval-aar:all']['cue_effect'] for m in JUDGES])} on the advanced-AI-risk items. Judges say why: "
@@ -332,7 +333,7 @@ RESULTS = [
           f"items but is sufficient on {rng(frac('deploy:register'), pct=True)} of real prompts, and hypothetical framing "
           f"is named on {rng(stated('hypo'), pct=True)} but sufficient on {rng(frac('deploy:hypo'), pct=True)}. A "
           "designer who followed the stated reasons would fix scaffolding first and see almost no change."),
-    ("fig", "figs/stated_vs_causal.png", 6.0,
+    ("fig", "figs/stated_vs_causal.png", 5.2,
      "**Figure 2.** What judges say versus what moves them. For each cue: how often it is named as a reason on original "
      "evaluation items (blue), how often removing it alone from an evaluation item moves P(eval) by ≥ 10 points (orange), "
      "and how often adding it alone to a real prompt does (green). Bars: mean over judges; dots: individual judges; "
@@ -419,6 +420,7 @@ INTRO[-1][1][-1] = ("**Findings.** No single cue is necessary for an evaluation 
                     "all surface edits; and judges’ stated reasons name real tells while hiding that each is individually "
                     "unnecessary.")
 
-BLOCKS = (INTRO + RELATED + METHODS + RESULTS + DISCUSSION + CONCLUSION + CODE_DATA + LLM_USAGE
+# template order: ... Conclusion, Code and Data, References, Appendix, LLM Usage Statement
+BLOCKS = (INTRO + RELATED + METHODS + RESULTS + DISCUSSION + CONCLUSION + CODE_DATA
           + [("h2", "References")] + [("ref", r) for r in REFS]
-          + [("pagebreak",), ("h2", "Appendix")] + ETHICS_APPX + PROMPTS_APPX + NEW_WORK_APPX)
+          + [("pagebreak",), ("h2", "Appendix")] + ETHICS_APPX + PROMPTS_APPX + NEW_WORK_APPX + LLM_USAGE)

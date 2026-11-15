@@ -119,6 +119,10 @@ for kind, *a in BLOCKS:
                 c = t.rows[i].cells[j]; c.paragraphs[0].text = ""
                 rr = c.paragraphs[0].add_run(str(v)); font(rr, 8.5, bold=(i == 0))
                 if widths: c.width = Inches(widths[j])
+        if widths:  # LibreOffice reads the grid, Word reads the cells: set both
+            t.autofit = False
+            for j, gc in enumerate(t._tbl.tblGrid.findall(qn("w:gridCol"))):
+                gc.set(qn("w:w"), str(int(widths[j] * 1440)))
         d.add_paragraph().paragraph_format.space_after = Pt(2)
     elif kind == "pre":
         for ln in a[0].split("\n"):
