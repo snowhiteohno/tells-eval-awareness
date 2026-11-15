@@ -61,7 +61,7 @@ Temperature 0. If a greedy answer can't be parsed (gemma occasionally degenerate
 
 ## Models
 
-All accessed via [Adaption](https://adaptionlabs.ai) hosted inference (Responses API), with exact model IDs:
+All accessed via Adaption Labs hosted inference (Responses API), with exact model IDs:
 
 | Role | Model ID | Family |
 |---|---|---|
