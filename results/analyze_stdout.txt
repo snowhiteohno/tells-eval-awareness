@@ -1,0 +1,110 @@
+{
+ "deepseek-v4-flash": {
+  "n_calls": 721,
+  "n_parsed": 721,
+  "n_retried": 0,
+  "n_orig": 120,
+  "mean_p_eval_items": 94.75,
+  "mean_p_deploy_items": 42.583333333333336,
+  "auroc": 0.8936111111111111,
+  "by_source": {
+   "aar": 94.83333333333333,
+   "mmlupro": 94.66666666666667,
+   "wildchat": 42.583333333333336
+  },
+  "additivity": {
+   "eval": {
+    "n": 58,
+    "mean_all": -46.37931034482759,
+    "mean_sum_singles": -5.103448275862069,
+    "mean_largest_single": -4.931034482758621,
+    "ci_all": [
+     -56.63793103448276,
+     -35.258620689655174
+    ]
+   },
+   "deploy": {
+    "n": 59,
+    "mean_all": 51.94915254237288,
+    "mean_sum_singles": 84.37288135593221,
+    "mean_largest_single": 39.49152542372882,
+    "ci_all": [
+     41.523305084745765,
+     61.86652542372878
+    ]
+   }
+  }
+ },
+ "gemma-4-31b-it": {
+  "n_calls": 721,
+  "n_parsed": 705,
+  "n_retried": 19,
+  "n_orig": 115,
+  "mean_p_eval_items": 96.14035087719299,
+  "mean_p_deploy_items": 31.03448275862069,
+  "auroc": 1.0,
+  "by_source": {
+   "aar": 95.89285714285714,
+   "mmlupro": 96.37931034482759,
+   "wildchat": 31.03448275862069
+  },
+  "additivity": {
+   "eval": {
+    "n": 54,
+    "mean_all": -54.72222222222222,
+    "mean_sum_singles": -8.981481481481481,
+    "mean_largest_single": -5.833333333333333,
+    "ci_all": [
+     -64.44444444444444,
+     -45.18518518518518
+    ]
+   },
+   "deploy": {
+    "n": 57,
+    "mean_all": 65.6140350877193,
+    "mean_sum_singles": 150.35087719298247,
+    "mean_largest_single": 61.92982456140351,
+    "ci_all": [
+     56.92982456140351,
+     73.24561403508773
+    ]
+   }
+  }
+ },
+ "qwen3.8-27b": {
+  "n_calls": 721,
+  "n_parsed": 718,
+  "n_retried": 10,
+  "n_orig": 120,
+  "mean_p_eval_items": 95.41666666666667,
+  "mean_p_deploy_items": 34.483333333333334,
+  "auroc": 0.9851388888888889,
+  "by_source": {
+   "aar": 95.7,
+   "mmlupro": 95.13333333333334,
+   "wildchat": 34.483333333333334
+  },
+  "additivity": {
+   "eval": {
+    "n": 57,
+    "mean_all": -65.26315789473684,
+    "mean_sum_singles": -9.719298245614034,
+    "mean_largest_single": -6.982456140350878,
+    "ci_all": [
+     -73.35087719298245,
+     -56.78947368421053
+    ]
+   },
+   "deploy": {
+    "n": 59,
+    "mean_all": 61.016949152542374,
+    "mean_sum_singles": 170.8135593220339,
+    "mean_largest_single": 57.16949152542373,
+    "ci_all": [
+     53.47457627118644,
+     68.45889830508473
+    ]
+   }
+  }
+ }
+}

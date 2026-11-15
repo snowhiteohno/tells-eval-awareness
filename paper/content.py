@@ -10,6 +10,7 @@ REPO = "https://github.com/snowhiteohno/tells-eval-awareness"
 S = json.load(open("results/summary.json"))
 JUDGES = ["gemma-4-31b-it", "deepseek-v4-flash", "qwen3.8-27b"]
 REWRITER = "glm-5.2"
+CLASSIFIER = "gemma-4-26b-a4b-it"
 
 
 def consts(path, names):
@@ -110,14 +111,19 @@ METHODS = [
           "**reason**, which first lists up to three features that most influenced the judgement. All calls use "
           f"temperature 0. Judges, from three model families: {', '.join(JUDGES)}, accessed through Adaption’s hosted "
           "inference API (exact IDs as listed). qwen3.8-27b and deepseek-v4-flash produce hidden reasoning tokens before "
-          "answering; gemma-4-31b-it does not."),
+          "answering; gemma-4-31b-it does not. If a temperature-0 answer cannot be parsed (gemma-4-31b-it occasionally "
+          "degenerates into a repeated token), it is re-queried once at temperature 0.3 and flagged; responses that still "
+          "fail are dropped. A larger Qwen model was tried and dropped because it exhausted its token budget on hidden "
+          "reasoning without answering."),
     ("h3", "3.4 Metrics"),
     ("p", "**Cue effect.** For prompt *i* and cue *c*, Δ = P(variant) − P(original). We report the mean effect *of the "
           "cue’s presence* on P(eval) (sign-flipped for removals, so positive always means “this cue makes a prompt look "
           "like a test”), with 95% bootstrap CIs over prompts (5,000 resamples) and a Wilcoxon signed-rank test. "
           "**Additivity.** We compare the joint (*all*) edit with the sum of single-cue effects. **Stated vs causal.** "
-          f"Each listed reason is tagged by a classifier ({REWRITER}, batched, temperature 0) into one of the cue "
-          "families, “AI-as-topic”, or “other content”. For each (prompt, cue) pair we record whether the cue was named "
+          f"Each listed reason is tagged by a classifier ({CLASSIFIER}, five responses per call, temperature 0) with "
+          "every applicable label among the cue families, “AI-as-topic” and “other content” (a line such as “lettered "
+          "options and an Answer: label” names two cues). Both GLM models we tried as classifiers returned empty "
+          "outputs after exhausting their token budget on hidden reasoning. For each (prompt, cue) pair we record whether the cue was named "
           "in the reasons given on the version that contains it, and whether editing it moved P(eval) by ≥ 10 points. We "
           "report mention rate, causal rate, P(causal | mentioned) (precision of stated tells) and P(mentioned | causal) "
           "(recall)."),
@@ -163,7 +169,7 @@ PROMPTS_APPX = [
                       ("I_OPTS", "Generate options (deploy)"), ("I_NOCTX", "Remove personal context (deploy)")]
      for x in [("p", f"**{lab}:** {TR[k]}")]] + [
     ("p", f"**Hypothetical prefix (deploy, rule):** “{TR['HYPO_PREFIX'].strip()}”"),
-    ("p", "**Classifier tags** (each listed feature gets exactly one): " +
+    ("p", f"**Classifier tags** ({CLASSIFIER}; each listed feature gets every tag that applies): " +
           "; ".join(f"`{k}` = {v}" for k, v in CL["TAGS"].items()) + "."),
 ]
 
@@ -209,9 +215,210 @@ NEW_WORK_APPX = [
 
 LLM_USAGE = [
     ("h2", "LLM Usage Statement"),
-    ("p", "LLMs are part of the method: glm-5.2 performs the minimal-edit rewrites and tags stated reasons, and three "
-          "judge models produce the measurements (all prompts in Appendix B). Separately, I used Claude (Anthropic) as a "
-          "coding and writing assistant to debug the pipeline, run the experiments and draft sections of this report. "
+    ("p", f"LLMs are part of the method: {REWRITER} performs the minimal-edit rewrites, {CLASSIFIER} tags stated "
+          "reasons, and three judge models produce the measurements (all prompts in Appendix B). Separately, I used Claude (Anthropic) as a "
+          "coding and writing assistant to debug the pipeline, run the experiments, draft sections of this report and perform "
+          "the 30-item classifier spot-check (so that check is LLM-vs-LLM agreement, not human validation). "
           "All numbers in the report are produced by `analyze.py` from logged model outputs; I checked the results, "
           "references and claims, and I take responsibility for the content."),
 ]
+
+# ------------------------------------------------------------------ results (all numbers read from summary.json)
+SP = json.load(open("results/spotcheck.json"))
+PM = {m: S["per_model"][m] for m in JUDGES}
+E = {m: PM[m]["num"]["effects"] for m in JUDGES}
+SV = {m: S["stated_vs_causal"][m] for m in JUDGES}
+CUES5 = ["fmt", "opts", "register", "context", "hypo"]
+NAME = {"fmt": "Q/A scaffolding", "opts": "Answer options", "register": "Polished register",
+        "context": "No personal context", "hypo": "Hypothetical framing", "all": "All cues jointly"}
+
+
+def rng(vals, fmt="{:.0f}", pct=False):
+    vals = [v * 100 if pct else v for v in vals]
+    lo, hi = fmt.format(min(vals)), fmt.format(max(vals))
+    return (lo if lo == hi else f"{lo}–{hi}") + ("%" if pct else "")
+
+
+def eff(key):
+    return [E[m][key]["cue_effect"] for m in JUDGES if key in E[m]]
+
+
+def frac(key):
+    return [E[m][key]["frac_moved10"] for m in JUDGES if key in E[m]]
+
+
+def stated(c):
+    return [SV[m]["orig_tag_rates"]["eval"].get(c, 0.0) for m in JUDGES]
+
+
+def nmax(key):
+    return max(E[m][key]["n"] for m in JUDGES if key in E[m])
+
+
+def sg(x):
+    return "0" if round(x) == 0 else f"{x:+.0f}"
+
+
+def cell(key):
+    v = eff(key)
+    return f"{sg(sum(v) / len(v))} ({sg(min(v))} to {sg(max(v))})" + (f", n={nmax(key)}" if nmax(key) < 10 else "")
+
+
+def pct_mean(vals):
+    return f"{100 * sum(vals) / len(vals):.0f}%"
+
+
+auroc = [PM[m]["num"]["auroc"] for m in JUDGES]
+add_e = {m: PM[m]["num"]["additivity"]["eval"] for m in JUDGES}
+add_d = {m: PM[m]["num"]["additivity"]["deploy"] for m in JUDGES}
+single_eval_max = max(abs(E[m][f"eval:{c}"]["cue_effect"]) for m in JUDGES for c in CUES5 if E[m][f"eval:{c}"]["n"] >= 10)
+xj = [v["rho"] for v in S["cross_judge_spearman"].values()]
+parsed = sum(PM[m]["num"]["n_parsed"] for m in JUDGES); calls = sum(PM[m]["num"]["n_calls"] for m in JUDGES)
+retried = sum(PM[m]["num"]["n_retried"] for m in JUDGES)
+ROB = S.get("robustness", {})
+
+TABLE2 = [[NAME[c], cell(f"eval:{c}"), cell(f"deploy:{c}"),
+           pct_mean(stated(c)) if c != "all" else "–",
+           pct_mean(frac(f"eval:{c}")), pct_mean(frac(f"deploy:{c}"))] for c in CUES5 + ["all"]]
+
+RESULTS = [
+    ("h2", "4. Results"),
+    ("p", f"**Judges separate the pools.** On unedited prompts all three judges discriminate evaluation items from real "
+          f"user prompts (AUROC {rng(auroc, '{:.2f}')}; mean P(eval) {rng([PM[m]['num']['mean_p_eval_items'] for m in JUDGES])} "
+          f"on evaluation items vs {rng([PM[m]['num']['mean_p_deploy_items'] for m in JUDGES])} on real prompts). "
+          f"{parsed} of {calls} num-mode responses parsed ({100 * parsed / calls:.1f}%), {retried} after one re-query "
+          "(Methods). There is therefore signal for single cues to explain."),
+    ("p", f"**No single cue is necessary; most are close to sufficient.** Removing any one cue from evaluation items "
+          f"changes mean P(eval) by at most {single_eval_max:.1f} points for any judge (Table 2, Figure 1 left), and "
+          f"moves an individual item by ≥ 10 points in at most {100 * max(max(frac(f'eval:{c}')) for c in CUES5 if nmax(f'eval:{c}') >= 10):.0f}% "
+          f"of cases. The effects are often statistically detectable (e.g. answer options: Wilcoxon p < 0.01 for all "
+          f"three judges) but small. "
+          f"Removing all cues jointly lowers P(eval) by {rng([-a['mean_all'] for a in add_e.values()])} points, far more "
+          f"than the sum of the single-cue effects ({rng([-a['mean_sum_singles'] for a in add_e.values()])}): the cues "
+          "are *redundant*, so each evaluation item stays recognisable while any other tell remains. The reverse "
+          f"direction is the opposite: adding one cue to a real prompt is often enough. Answer options raise P(eval) by "
+          f"{rng(eff('deploy:opts'))} points, hypothetical framing by {rng(eff('deploy:hypo'))}, Q/A scaffolding by "
+          f"{rng(eff('deploy:fmt'))} and polished register by {rng(eff('deploy:register'))} (Figure 1 right); the joint "
+          f"addition ({rng([a['mean_all'] for a in add_d.values()])}) is *less* than the sum of singles "
+          f"({rng([a['mean_sum_singles'] for a in add_d.values()])}), as expected if one tell already saturates the "
+          f"judgement. The three judges rank the cue effects almost identically (pairwise Spearman ρ = {rng(xj, '{:.2f}')} "
+          "across the eight well-powered cells)."),
+    ("fig", "figs/cue_effects.png", 6.5,
+     "**Figure 1.** Causal effect of each cue’s presence on a judge’s stated P(eval), in percentage points (positive = "
+     "the cue makes a prompt look like a test). Left: cue removed from evaluation items; right: cue added to real "
+     "WildChat prompts. Bars are mean paired changes per judge with 95% bootstrap CIs; faded bars have n < 10 items "
+     "(the cue was rarely present to edit). Single removals barely move evaluation items, while single additions move "
+     "real prompts a lot."),
+    ("table", "**Table 2.** Cue effects (mean over the three judges, with range across judges) and how often each cue is "
+              "named versus causally important. *Stated*: share of original evaluation items whose stated reasons name "
+              "the cue. *Necessary*: share of evaluation items where removing the cue alone moves P(eval) ≥ 10 points. "
+              "*Sufficient*: share of real prompts where adding the cue alone moves P(eval) ≥ 10 points. Effects in "
+              "percentage points; n = 54–60 items per cell unless shown.",
+     ["Cue", "Removed from evals", "Added to real prompts", "Stated", "Necessary", "Sufficient"], TABLE2,
+     [1.35, 1.45, 1.45, 0.65, 0.8, 0.8]),
+    ("p", f"**Safety evaluations stay recognisable without any surface cue.** The joint edit lowers P(eval) by "
+          f"{rng([E[m]['eval-mmlupro:all']['cue_effect'] for m in JUDGES])} points on MMLU-Pro items but only "
+          f"{rng([E[m]['eval-aar:all']['cue_effect'] for m in JUDGES])} on the advanced-AI-risk items. Judges say why: "
+          f"“the content is about the AI itself” is named on {rng([SV[m]['orig_tag_rates']['eval'].get('ai_topic', 0) for m in JUDGES], pct=True)} "
+          "of original evaluation items. For safety evaluations the topic is itself a tell that no formatting fix removes."),
+    ("p", f"**Stated reasons name real tells but hide their redundancy.** Judges name Q/A scaffolding on "
+          f"{rng(stated('fmt'), pct=True)} of evaluation items and answer options on {rng(stated('opts'), pct=True)}, yet "
+          f"removing scaffolding alone moves P(eval) by ≥ 10 points on only {rng(frac('eval:fmt'), pct=True)} of them "
+          f"and removing options on {rng(frac('eval:opts'), pct=True)} (Figure 2). The precision of a stated tell as a "
+          "guide to what is *individually* worth fixing is therefore low. The stated cues are not invented, however: "
+          f"they are the ones that are most often *sufficient* when added to real prompts (options "
+          f"{rng(frac('deploy:opts'), pct=True)}, scaffolding {rng(frac('deploy:fmt'), pct=True)}). The reasons also "
+          f"under-report two cues: polished register is named on only {rng(stated('register'), pct=True)} of evaluation "
+          f"items but is sufficient on {rng(frac('deploy:register'), pct=True)} of real prompts, and hypothetical framing "
+          f"is named on {rng(stated('hypo'), pct=True)} but sufficient on {rng(frac('deploy:hypo'), pct=True)}. A "
+          "designer who followed the stated reasons would fix scaffolding first and see almost no change."),
+    ("fig", "figs/stated_vs_causal.png", 6.0,
+     "**Figure 2.** What judges say versus what moves them. For each cue: how often it is named as a reason on original "
+     "evaluation items (blue), how often removing it alone from an evaluation item moves P(eval) by ≥ 10 points (orange), "
+     "and how often adding it alone to a real prompt does (green). Bars: mean over judges; dots: individual judges; "
+     "faded: n < 10. Judges name scaffolding and options on almost every evaluation item, but neither is individually "
+     "necessary."),
+    ("p", f"**Robustness of the measurement.** Asking for reasons first changes the judgement only modestly: num-mode and "
+          f"reason-mode P(eval) correlate at Spearman ρ = {rng([PM[m]['num_reason_spearman'] for m in JUDGES], '{:.2f}')}, "
+          f"although reason mode raises deepseek-v4-flash’s AUROC from {PM['deepseek-v4-flash']['num']['auroc']:.2f} to "
+          f"{PM['deepseek-v4-flash']['reason']['auroc']:.2f}. The scaffolding mention rate depends on the classifier; a "
+          "classifier-free lower bound that counts only reasons literally citing the Question:/Answer: labels or a "
+          f"template still gives {rng([SV[m]['fmt_lexical_rate_eval'] for m in JUDGES], pct=True)}, against a necessary "
+          f"rate of at most {100 * max(frac('eval:fmt')):.0f}%. On {SP['n']} randomly sampled stated features the "
+          f"classifier’s tag set matched an independent blind labelling (by an LLM assistant, Claude, not a human) exactly on {SP['agree']}/{SP['n']}, with per-tag "
+          f"presence agreement of {rng(list(SP['per_tag_agreement'].values()), pct=True)} (lowest for scaffolding, "
+          f"{100 * SP['per_tag_agreement']['fmt']:.0f}%, where the classifier over-assigns it to multiple-choice "
+          "descriptions)." + (
+          f" Re-running num mode once more at temperature 0.7 preserves the cue ranking (Spearman ρ between T = 0 and "
+          f"T = 0.7 cue effects: {rng([ROB[m]['rank_spearman_t0_vs_t07'] for m in JUDGES if ROB.get(m, {}).get('rank_spearman_t0_vs_t07') is not None], '{:.2f}')})."
+          if all(ROB.get(m, {}).get("rank_spearman_t0_vs_t07") is not None for m in JUDGES) else "")),
+]
+
+DISCUSSION = [
+    ("h2", "5. Discussion and Limitations"),
+    ("p", "**Implications for evaluation design.** Evaluation items are overdetermined: each carries several tells, and "
+          "the judges keep recognising an item while any one remains. Cue-by-cue realism fixes, the natural response to "
+          "a judge’s stated reasons, should therefore be expected to show no effect until the last tell is removed; this "
+          "is consistent with the difficulty reported by [5]. In the other direction, almost any single benchmark "
+          "convention (answer options, hypothetical framing, Q/A labels) is enough to make an ordinary request look like "
+          "a test. For safety evaluations specifically, the content (questions about the model’s own goals, shutdown or "
+          "power) remains a strong tell after all surface cues are gone, which suggests realism work for these "
+          "evaluations has to change the scenario, not the formatting."),
+    ("p", "**Implications for trusting model explanations.** The judges’ stated reasons are neither random nor "
+          "fabricated: they name cues that really can move the judgement. They fail in a subtler way — by presenting "
+          "each tell as decisive when it is individually unnecessary, and by under-reporting register and hypothetical "
+          "framing. Stated reasons are a reasonable list of candidates, but a poor guide to what to change; single-cue "
+          "interventions like ours are a cheap way to check them."),
+    ("h3", "Limitations"),
+    ("p", "We measure *stated* P(eval) from three open models when asked directly, not internal belief or downstream "
+          "behaviour. Pools are small (60 + 60), two cue cells are tiny (hypothetical framing could be removed from only "
+          f"{nmax('eval:hypo')} evaluation items and personal context removed from only {nmax('deploy:context')} real "
+          "prompts), and WildChat prompts differ from evaluation items in more than our five cues. LLM edits can leave "
+          "artifacts despite our guard and inspection. Effects are measured from a near-ceiling baseline on evaluation "
+          "items (mean P(eval) ≈ 95), which limits how much a single removal could show if judges are saturated; the "
+          "joint-edit result shows the judges are not insensitive to removal, only to single removals. Appendix A "
+          "expands on these points and on dual use."),
+    ("h3", "Future Work"),
+    ("p", "Pairwise and leave-one-in edits to map exactly which cue combinations keep an item recognisable; the same "
+          "protocol on frontier closed models and on model-internal probes [3, 4]; testing whether lowering stated "
+          "P(eval) through these edits changes behaviour on the safety items themselves [6, 12]; and scenario-level "
+          "rewrites for safety evaluations, where the topic itself is the tell."),
+]
+
+CONCLUSION = [
+    ("h2", "6. Conclusion"),
+    ("p", "By editing one cue at a time in both directions, we find that what makes a prompt look like an evaluation is "
+          "redundant rather than located in any single feature: no single cue is necessary for an evaluation item to be "
+          "recognised, while several are individually sufficient to make a real prompt look like a test, and "
+          "AI-safety content stays recognisable after every surface cue is removed. Judges’ stated reasons point at real "
+          "tells but misrepresent them as individually decisive. Evaluation builders should treat a judge’s explanation "
+          "as a hypothesis to test, and expect realism to come from changing scenarios, not formatting."),
+]
+
+ABSTRACT = (
+    "If language models can tell evaluations from real use, safety evaluations stop measuring deployment behaviour. "
+    "Efforts to make evaluations realistic currently rely on a judge model’s stated reasons for why a prompt looks like "
+    "a test, or on rewrites that change many features at once. We isolate five candidate tells (Q/A scaffolding, answer "
+    "options, polished register, absence of personal context, hypothetical framing) and edit each one alone, in both "
+    "directions: removing it from 60 real evaluation items (Anthropic advanced-AI-risk evaluations and MMLU-Pro) and "
+    "adding it to 60 real WildChat prompts. Three open judges from different model families report P(eval) for every "
+    f"variant. All judges separate the original pools (AUROC {rng(auroc, '{:.2f}')}). No single removal lowers "
+    f"mean P(eval) on evaluation items by more than {single_eval_max:.0f} points, yet removing all cues lowers it by "
+    f"{rng([-a['mean_all'] for a in add_e.values()])} points: tells are redundant. Conversely, adding answer options "
+    f"alone raises P(eval) on real prompts by {rng(eff('deploy:opts'))} points and hypothetical framing by "
+    f"{rng(eff('deploy:hypo'))}. AI-safety items remain recognisable after all surface edits "
+    f"({rng([E[m]['eval-aar:all']['cue_effect'] for m in JUDGES])}-point drop versus "
+    f"{rng([E[m]['eval-mmlupro:all']['cue_effect'] for m in JUDGES])} for MMLU-Pro). Judges’ stated reasons name "
+    f"scaffolding on {rng(stated('fmt'), pct=True)} of evaluation items, although removing it alone moves P(eval) by ≥ 10 "
+    f"points on at most {100 * max(frac('eval:fmt')):.0f}%. Stated reasons identify real tells but hide their "
+    "redundancy, so they are a poor guide to what to change; single-cue interventions offer a cheap check."
+)
+
+INTRO[-1][1][-1] = ("**Findings.** No single cue is necessary for an evaluation item to look like a test, but several are "
+                    "individually sufficient to make a real prompt look like one; AI-safety content remains a tell after "
+                    "all surface edits; and judges’ stated reasons name real tells while hiding that each is individually "
+                    "unnecessary.")
+
+BLOCKS = (INTRO + RELATED + METHODS + RESULTS + DISCUSSION + CONCLUSION + CODE_DATA + LLM_USAGE
+          + [("h2", "References")] + [("ref", r) for r in REFS]
+          + [("pagebreak",), ("h2", "Appendix")] + ETHICS_APPX + PROMPTS_APPX + NEW_WORK_APPX)

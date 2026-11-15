@@ -13,3 +13,4 @@ paper/*.out
 paper/paper.pdf
 paper/template.docx
 smoke.py
+paper/progress*

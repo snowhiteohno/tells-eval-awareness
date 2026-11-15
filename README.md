@@ -16,7 +16,28 @@ This project does two things neither does:
 
 ## Results
 
-> ⏳ Runs in progress. Headline numbers, figures and the report PDF will be added here once `results/summary.json` is final. Every number in the report traces to that file.
+Three open judges (`gemma-4-31b-it`, `deepseek-v4-flash`, `qwen3.8-27b`) separate the original pools (AUROC 0.89–1.00). Effects below are changes in the judge's stated P(eval), in percentage points.
+
+1. **No single tell is necessary, but several are sufficient.** Removing any one cue from eval items changes mean P(eval) by at most 6.4 pp. Removing **all** cues together drops it by 46–65 pp, so tells are redundant. Adding a single cue to a real prompt is often enough: answer options +51–62 pp, hypothetical framing +16–55 pp, Q/A scaffolding +10–44 pp.
+2. **AI-safety evals stay recognisable without any surface cue.** Removing all cues drops P(eval) by 23–46 pp on the advanced-AI-risk items vs 69–86 pp on MMLU-Pro. "The content is about the AI itself" is named on 43–47% of eval items.
+3. **Stated reasons name real tells but hide their redundancy.** Judges cite Q/A scaffolding on 88–100% of eval items, yet removing it alone moves P(eval) by ≥10 pp on only 0–3%. The same cue *is* sufficient when added to real prompts (35–87%). Polished register and hypothetical framing are under-reported relative to their causal effect.
+4. The three judges rank the cue effects almost identically (pairwise Spearman ρ = 0.93).
+
+| Cue | Removed from evals (pp) | Added to real prompts (pp) | Stated | Necessary | Sufficient |
+|---|---|---|---|---|---|
+| Q/A scaffolding | +1 (0 to +2) | +27 (+10 to +44) | 94% | 2% | 55% |
+| Answer options | +5 (+3 to +6) | +57 (+51 to +62) | 97% | 24% | 81% |
+| Polished register | +1 (0 to +1) | +10 (+6 to +14) | 13% | 1% | 39% |
+| No personal context | +1 (+1 to +2) | +9 (0 to +24), n=4 | 49% | 6% | 25% |
+| Hypothetical framing | +1 (-1 to +2), n=3 | +41 (+16 to +55) | 31% | 0% | 70% |
+| All cues jointly | +55 (+46 to +65) | +60 (+52 to +66) | – | 74% | 87% |
+
+*Effects are the mean over judges, with the range across judges in brackets. Stated = share of eval items whose reasons name the cue. Necessary / Sufficient = share of items where removing / adding the cue alone moves P(eval) by ≥10 pp.* Every number is produced by `analyze.py` and stored in `results/summary.json`.
+
+![Cue effects](figs/cue_effects.png)
+![Stated vs causal](figs/stated_vs_causal.png)
+
+Full report: [`paper/report.pdf`](paper/report.pdf).
 
 ## Design
 
@@ -68,9 +89,10 @@ All accessed via Adaption Labs hosted inference (Responses API), with exact mode
 | Judge | `gemma-4-31b-it` | Google, non-reasoning |
 | Judge | `deepseek-v4-flash` | DeepSeek, reasoning |
 | Judge | `qwen3.8-27b` | Alibaba, reasoning |
-| Rewriter + classifier | `glm-5.2` | Zhipu, not one of the judges |
+| Rewriter | `glm-5.2` | Zhipu, not one of the judges |
+| Reason classifier | `gemma-4-26b-a4b-it` | Google; a different model from the gemma judge, same family |
 
-`qwen3.5-397b` was tried as a judge and dropped: it spent its whole 2,000-token budget on hidden reasoning and returned no answer.
+`qwen3.5-397b` was tried as a judge, and `glm-5.2` / `glm-5.3-flash` as classifiers. All were dropped because they spent their whole token budget on hidden reasoning and returned empty answers.
 
 ## Reproduce
 
@@ -85,7 +107,8 @@ python build_items.py                       # -> data/pool.json
 
 python transforms.py glm-5.2                # -> data/variants.json
 python probe.py gemma-4-31b-it,deepseek-v4-flash,qwen3.8-27b --modes num,reason
-python classify.py glm-5.2                  # -> results/reason_tags.jsonl
+python classify.py gemma-4-26b-a4b-it       # -> results/reason_tags.jsonl
+python spotcheck.py make / score            # classifier spot-check (30 features)
 python analyze.py                           # -> results/summary.json, figs/
 python paper/build_report.py                # -> paper/report.docx (Apart template)
 ```

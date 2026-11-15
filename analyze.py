@@ -1,5 +1,5 @@
 """All numbers and figures for the report. Usage: python analyze.py  -> results/summary.json, figs/*.png"""
-import json, os, collections
+import json, os, collections, re
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
@@ -187,7 +187,11 @@ if os.path.exists("results/reason_tags.jsonl"):
                     n += 1
                     tagc.update(set(t["tags"]))
             otr[pool] = {k: v / max(n, 1) for k, v in tagc.items()}
-        svc[m] = {"cues": rows, "orig_tag_rates": otr}
+        # classifier-free lower bound for "fmt" mentions: reasons that literally cite the labels or a template
+        lex = re.compile(r"Question:|Answer:|[\"“]Question|[\"“]Answer|label|template|scaffold", re.I)
+        ev_o = [t for (mm, vid), t in T.items() if mm == m and vid.endswith("|orig") and t["pool"] == "eval"]
+        svc[m] = {"cues": rows, "orig_tag_rates": otr,
+                  "fmt_lexical_rate_eval": float(np.mean([any(lex.search(f) for f in t["features"]) for t in ev_o])) if ev_o else None}
         if len(rows) >= 3:
             svc[m]["spearman_mention_vs_effect"] = float(spearmanr([r["mention_rate"] for r in rows.values()],
                                                                    [r["mean_abs_delta"] for r in rows.values()]).correlation)
@@ -217,14 +221,28 @@ for mode in ["num"]:
     plt.tight_layout(); plt.savefig("figs/cue_effects.png", dpi=200); plt.close()
 
 if "stated_vs_causal" in S:
-    fig, ax = plt.subplots(figsize=(5, 4))
-    for m in models:
-        rows = S["stated_vs_causal"].get(m, {}).get("cues", {})
-        xs = [r["mention_rate"] for r in rows.values()]; ys = [r["mean_abs_delta"] for r in rows.values()]
-        ax.scatter(xs, ys, label=m)
-        for c, r in rows.items():
-            ax.annotate(c, (r["mention_rate"], r["mean_abs_delta"]), fontsize=7, xytext=(3, 3), textcoords="offset points")
-    ax.set_xlabel("Stated: rate the cue is named as a reason"); ax.set_ylabel("Causal: mean |ΔP(eval)| when edited (pp)")
-    ax.legend(fontsize=7); plt.tight_layout(); plt.savefig("figs/stated_vs_causal.png", dpi=200); plt.close()
+    # per cue: how often judges NAME it on eval items vs how often it is individually necessary (removal moves >=10pp)
+    # vs sufficient (adding it to a real prompt moves >=10pp); bars = mean over judges, dots = individual judges
+    cues5 = ["fmt", "opts", "register", "context", "hypo"]
+    series = [("Stated: named as a reason on eval items", lambda m, c: S["stated_vs_causal"][m]["orig_tag_rates"]["eval"].get(c, 0.0)),
+              ("Necessary: removal from eval item moves ≥10pp", lambda m, c: S["per_model"][m]["num"]["effects"].get(f"eval:{c}", {}).get("frac_moved10")),
+              ("Sufficient: adding to real prompt moves ≥10pp", lambda m, c: S["per_model"][m]["num"]["effects"].get(f"deploy:{c}", {}).get("frac_moved10"))]
+    fig, ax = plt.subplots(figsize=(8, 3.6))
+    w = 0.26
+    for k, (lab, f) in enumerate(series):
+        for j, c in enumerate(cues5):
+            vals = [f(m, c) for m in models if f(m, c) is not None]
+            if not vals:
+                continue
+            # stated rate is over all eval originals; only the edit-based bars depend on how many items had the cue edited
+            ns = [99] if k == 0 else [S["per_model"][m]["num"]["effects"].get(f"{'eval' if k == 1 else 'deploy'}:{c}", {}).get("n", 99) for m in models]
+            x = j + (k - 1) * w
+            ax.bar(x, np.mean(vals), w, color=["#4c72b0", "#dd8452", "#55a868"][k], alpha=1.0 if min(ns) >= 10 else 0.35,
+                   label=lab if j == 0 else None)
+            ax.scatter([x] * len(vals), vals, s=8, color="k", zorder=3)
+    ax.set_xticks(range(len(cues5))); ax.set_xticklabels([CUE_NAME[c].replace(" ", "\n", 1) for c in cues5], fontsize=8)
+    ax.set_ylabel("Share of prompts"); ax.set_ylim(0, 1.05)
+    ax.legend(fontsize=7, loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=3, frameon=False)
+    plt.tight_layout(); plt.savefig("figs/stated_vs_causal.png", dpi=200); plt.close()
 
 print(json.dumps({m: {k: v for k, v in S["per_model"][m].get("num", {}).items() if k != "effects"} for m in models}, indent=1))
