@@ -1,0 +1,15 @@
+.env
+.venv/
+__pycache__/
+cache/
+data/*.parquet
+data/aar_*.jsonl
+data/items.jsonl
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.log
+paper/*.out
+paper/paper.pdf
+paper/template.docx
+smoke.py
