@@ -1,4 +1,4 @@
-# Tells: What Causally Makes a Language Model Think It Is Being Evaluated — and Does It Know Why?
+# Tells: What Causally Makes a Language Model Think It Is Being Evaluated and Does It Know Why?
 
 Solo submission to the **AI x Epistemics Research Sprint** (Apart Research, 13–15 Nov 2026), Track 1: Model Epistemics & Decision-Making Evals.
 **Author:** Mallika Suri, Scaler School of Technology, Bengaluru.
