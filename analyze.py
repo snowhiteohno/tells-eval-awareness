@@ -169,15 +169,21 @@ if os.path.exists("results/reason_tags.jsonl"):
                         continue
                     mentioned = c in t["tags"]
                     causal = abs(v["p"] - o[v["id"]]) >= 10
-                    pairs.append((mentioned, causal, abs(v["p"] - o[v["id"]])))
+                    pairs.append((mentioned, causal, abs(v["p"] - o[v["id"]]), pool == "eval"))
             if not pairs:
                 continue
-            a = np.array(pairs, float)
-            men, cau = a[:, 0].astype(bool), a[:, 1].astype(bool)
-            rows[c] = {"n": len(a), "mention_rate": float(men.mean()), "causal_rate": float(cau.mean()),
-                       "mean_abs_delta": float(a[:, 2].mean()),
-                       "p_causal_given_mentioned": float(cau[men].mean()) if men.any() else None,
-                       "p_mentioned_given_causal": float(men[cau].mean()) if cau.any() else None}
+
+            def metrics(ps):
+                a = np.array(ps, float)
+                men, cau = a[:, 0].astype(bool), a[:, 1].astype(bool)
+                return {"n": len(a), "mention_rate": float(men.mean()), "causal_rate": float(cau.mean()),
+                        "mean_abs_delta": float(a[:, 2].mean()),
+                        "p_causal_given_mentioned": float(cau[men].mean()) if men.any() else None,
+                        "p_mentioned_given_causal": float(men[cau].mean()) if cau.any() else None}
+            rows[c] = metrics(pairs)
+            # per pool: eval = reasons on the original (cue present); deploy = reasons on the variant (cue added)
+            rows[c]["by_pool"] = {pool: metrics([p for p in pairs if p[3] == (pool == "eval")])
+                                  for pool in ["eval", "deploy"] if any(p[3] == (pool == "eval") for p in pairs)}
         # what do models say on original eval prompts overall?
         otr = {}
         for pool in ["eval", "deploy"]:

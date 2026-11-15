@@ -20,8 +20,9 @@ Three open judges (`gemma-4-31b-it`, `deepseek-v4-flash`, `qwen3.8-27b`) separat
 
 1. **No single tell is necessary, but several are sufficient.** Removing any one cue from eval items changes mean P(eval) by at most 6.4 pp. Removing **all** cues together drops it by 46–65 pp, so tells are redundant. Adding a single cue to a real prompt is often enough: answer options +51–62 pp, hypothetical framing +16–55 pp, Q/A scaffolding +10–44 pp.
 2. **AI-safety evals stay recognisable without any surface cue.** Removing all cues drops P(eval) by 23–46 pp on the advanced-AI-risk items vs 69–86 pp on MMLU-Pro. "The content is about the AI itself" is named on 43–47% of eval items.
-3. **Stated reasons name real tells but hide their redundancy.** Judges cite Q/A scaffolding on 88–100% of eval items, yet removing it alone moves P(eval) by ≥10 pp on only 0–3%. The same cue *is* sufficient when added to real prompts (35–87%). Polished register and hypothetical framing are under-reported relative to their causal effect.
+3. **Stated reasons name real tells but hide their redundancy.** Judges cite Q/A scaffolding on 88–100% of eval items, yet removing it alone moves P(eval) by ≥10 pp on only 0–3%. The same cue *is* sufficient when added to real prompts (35–87%). When an added cue moves the judgement, judges usually name it (options 100%, hypothetical framing 93–100%), except polished register (7–53%), which is the one cue they systematically under-report.
 4. The three judges rank the cue effects almost identically (pairwise Spearman ρ = 0.93).
+5. **Robust.** Re-sampling every judgement at temperature 0.7 preserves the cue ranking (Spearman ρ = 0.98–1.00 vs T=0). A classifier-free lower bound confirms the scaffolding gap, and a 30-item classifier spot-check was done by an LLM assistant (not a human).
 
 | Cue | Removed from evals (pp) | Added to real prompts (pp) | Stated | Necessary | Sufficient |
 |---|---|---|---|---|---|

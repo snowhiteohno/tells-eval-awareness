@@ -278,6 +278,24 @@ parsed = sum(PM[m]["num"]["n_parsed"] for m in JUDGES); calls = sum(PM[m]["num"]
 retried = sum(PM[m]["num"]["n_retried"] for m in JUDGES)
 ROB = S.get("robustness", {})
 
+def recall_dep(c):
+    """P(cue named in reasons | adding the cue moved P(eval) >= 10pp), per judge, deploy side only."""
+    out = []
+    for m in JUDGES:
+        bp = SV[m]["cues"].get(c, {}).get("by_pool", {}).get("deploy")
+        if bp and bp["p_mentioned_given_causal"] is not None and bp["n"] >= 10:
+            out.append(bp["p_mentioned_given_causal"])
+    return out
+
+
+DEPLOY_RECALL = ""
+if all(recall_dep(c) for c in ["opts", "fmt", "register", "hypo"]):
+    DEPLOY_RECALL = (" On the deploy side, among real prompts where adding a cue moved P(eval) by ≥ 10 points, judges "
+                     f"named the added cue in their reasons in {rng(recall_dep('opts'), pct=True)} of cases for answer "
+                     f"options, {rng(recall_dep('fmt'), pct=True)} for Q/A labels, {rng(recall_dep('register'), pct=True)} "
+                     f"for polished register and {rng(recall_dep('hypo'), pct=True)} for hypothetical framing.")
+
+
 TABLE2 = [[NAME[c], cell(f"eval:{c}"), cell(f"deploy:{c}"),
            pct_mean(stated(c)) if c != "all" else "–",
            pct_mean(frac(f"eval:{c}")), pct_mean(frac(f"deploy:{c}"))] for c in CUES5 + ["all"]]
@@ -328,11 +346,11 @@ RESULTS = [
           f"and removing options on {rng(frac('eval:opts'), pct=True)} (Figure 2). The precision of a stated tell as a "
           "guide to what is *individually* worth fixing is therefore low. The stated cues are not invented, however: "
           f"they are the ones that are most often *sufficient* when added to real prompts (options "
-          f"{rng(frac('deploy:opts'), pct=True)}, scaffolding {rng(frac('deploy:fmt'), pct=True)}). The reasons also "
-          f"under-report two cues: polished register is named on only {rng(stated('register'), pct=True)} of evaluation "
-          f"items but is sufficient on {rng(frac('deploy:register'), pct=True)} of real prompts, and hypothetical framing "
-          f"is named on {rng(stated('hypo'), pct=True)} but sufficient on {rng(frac('deploy:hypo'), pct=True)}. A "
-          "designer who followed the stated reasons would fix scaffolding first and see almost no change."),
+          f"{rng(frac('deploy:opts'), pct=True)}, scaffolding {rng(frac('deploy:fmt'), pct=True)}). A designer who "
+          "followed the stated reasons would fix scaffolding first and see almost no change." + DEPLOY_RECALL +
+          " Register is the exception: it is sufficient on "
+          f"{rng(frac('deploy:register'), pct=True)} of real prompts and named on only {rng(stated('register'), pct=True)} "
+          "of evaluation items, so it is the one cue the judges systematically under-report."),
     ("fig", "figs/stated_vs_causal.png", 5.2,
      "**Figure 2.** What judges say versus what moves them. For each cue: how often it is named as a reason on original "
      "evaluation items (blue), how often removing it alone from an evaluation item moves P(eval) by ≥ 10 points (orange), "
@@ -366,9 +384,9 @@ DISCUSSION = [
           "power) remains a strong tell after all surface cues are gone, which suggests realism work for these "
           "evaluations has to change the scenario, not the formatting."),
     ("p", "**Implications for trusting model explanations.** The judges’ stated reasons are neither random nor "
-          "fabricated: they name cues that really can move the judgement. They fail in a subtler way — by presenting "
-          "each tell as decisive when it is individually unnecessary, and by under-reporting register and hypothetical "
-          "framing. Stated reasons are a reasonable list of candidates, but a poor guide to what to change; single-cue "
+          "fabricated: when an added cue moves the judgement, the judges usually name it. They fail in a subtler way — "
+          "by presenting each tell as decisive when it is individually unnecessary, and by under-reporting writing "
+          "register. Stated reasons are a reasonable list of candidates, but a poor guide to what to change; single-cue "
           "interventions like ours are a cheap way to check them."),
     ("h3", "Limitations"),
     ("p", "We measure *stated* P(eval) from three open models when asked directly, not internal belief or downstream "

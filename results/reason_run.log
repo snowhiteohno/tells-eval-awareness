@@ -1,1 +1,11 @@
 2163 probe calls
+FAIL gemma-4-31b-it Connection error.
+FAIL deepseek-v4-flash Connection error.
+FAIL qwen3.8-27b Connection error.
+FAIL gemma-4-31b-it Connection error.
+FAIL deepseek-v4-flash Connection error.
+FAIL qwen3.8-27b Connection error.
+FAIL deepseek-v4-flash Connection error.
+FAIL gemma-4-31b-it Connection error.
+FAIL qwen3.8-27b Error code: 429 - {'error': {'message': 'Inference rate limit reached for this user; retry after 60 seconds', 'type': 'rate_limit_error', 'param': None, 'code': 'rate_limit_exceeded'}}
+done; unparsed 14/2163
