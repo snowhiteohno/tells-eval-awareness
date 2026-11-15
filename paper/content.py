@@ -166,3 +166,52 @@ PROMPTS_APPX = [
     ("p", "**Classifier tags** (each listed feature gets exactly one): " +
           "; ".join(f"`{k}` = {v}" for k, v in CL["TAGS"].items()) + "."),
 ]
+
+CODE_DATA = [
+    ("h2", "Code and Data"),
+    ("p", f"**Code repository:** {REPO} (all scripts, reproduction instructions, exact model IDs)."),
+    ("p", "**Data:** `data/pool.json` (the 120 prompts), `data/variants.json` (all single-cue variants), "
+          "`data/skipped_rewrites.json` (guard-rejected edits), `results/probes.jsonl` (every judge response, raw text "
+          "included), `results/reason_tags.jsonl`, `results/summary.json` (every number in this report)."),
+]
+
+ETHICS_APPX = [
+    ("h3", "Appendix A. Limitations and Dual-Use / Ethical Considerations"),
+    ("p", "**What this does and does not establish.** We measure how single prompt features shift a judge model’s "
+          "*stated* probability that a prompt is an evaluation, when asked directly. This is not the model’s internal "
+          "belief, and it is not evidence that the model behaves differently on such prompts; a model can be "
+          "unaware-in-words but aware-in-activations, or the reverse [3, 4, 12]. Our judges are three open models served "
+          "by one hosted provider; frontier closed models may weight cues differently. The prompt-level n is small "
+          "(60 per pool, and only 3–4 items for two one-directional cells), so we report CIs and treat small-n cells as "
+          "descriptive."),
+    ("p", "**Confounds.** WildChat is ChatGPT-era traffic (2023–24), so deployment prompts differ from evaluation items "
+          "in topic, length and language as well as in our five cues; single-cue edits isolate each cue *within* a "
+          "prompt, but not every interaction with these background differences. LLM rewrites can leave artifacts (e.g. a "
+          "slightly over-fluent added context sentence); we used rule-based edits where possible, a length/script guard, "
+          "a constrained context instruction, and manual inspection of sampled variants, but cannot rule out residual "
+          "leakage. Our wrapper itself frames the task as classification, which one judge occasionally cited as a reason."),
+    ("p", "**Dual use.** A ranked list of tells could help someone disguise evaluations from models, or could be used to "
+          "help a model detect evaluations. We think the main use is the intended one — helping evaluation builders "
+          "remove the cheapest giveaways so that safety evaluations measure deployment behaviour — and the cues we "
+          "study are surface features already discussed publicly. We do not train or fine-tune any model, and we "
+          "release only prompts drawn from public datasets."),
+    ("p", "**Personal data.** WildChat is PII-scrubbed by its authors; we additionally dropped prompts containing URLs, "
+          "e-mail addresses, phone-number patterns, or redaction flags, and use only 60 first turns. One retained "
+          "prompt contains sexually explicit text; we kept it unchanged because it is a genuine deployment prompt from "
+          "the public dataset and removing it after seeing results would bias the pool."),
+]
+
+NEW_WORK_APPX = [
+    ("h3", "Appendix C. Statement of new work"),
+    ("p", "All code, data selection, experiments, analysis and writing were produced during the sprint (13–15 November "
+          "2026). No preexisting code was used. The prompt pools come from public datasets [9, 10, 11]."),
+]
+
+LLM_USAGE = [
+    ("h2", "LLM Usage Statement"),
+    ("p", "LLMs are part of the method: glm-5.2 performs the minimal-edit rewrites and tags stated reasons, and three "
+          "judge models produce the measurements (all prompts in Appendix B). Separately, I used Claude (Anthropic) as a "
+          "coding and writing assistant to debug the pipeline, run the experiments and draft sections of this report. "
+          "All numbers in the report are produced by `analyze.py` from logged model outputs; I checked the results, "
+          "references and claims, and I take responsibility for the content."),
+]
