@@ -2,7 +2,7 @@
 copied from the same file. Static sections reuse paper/paper.tex."""
 import ast, json
 
-TITLE = "Tells: What Causally Makes a Language Model Think It Is Being Evaluated — and Does It Know Why?"
+TITLE = "Tells: What Causally Makes a Language Model Think It Is Being Evaluated, and Does It Know Why?"
 AUTHOR = "Mallika Suri"
 AFFIL = "Scaler School of Technology, Bengaluru"
 REPO = "https://github.com/snowhiteohno/tells-eval-awareness"
@@ -46,9 +46,9 @@ INTRO = [
           "and language-model explanations are unfaithful in other settings [8]."),
     ("p", "Our main contributions are:"),
     ("bullets", [
-        "**A causal cue map.** We edit five candidate “tells” one at a time, in both directions — removing each from real "
+        "**A causal cue map.** We edit five candidate “tells” one at a time, in both directions: removing each from real "
         "evaluation items (Anthropic’s advanced-AI-risk evaluations [9] and MMLU-Pro [10]) and adding it to real user "
-        "prompts from WildChat [11] — and measure the paired change in three open judges’ stated probability that the "
+        "prompts from WildChat [11]. We then measure the paired change in three open judges’ stated probability that the "
         "prompt is an evaluation.",
         "**A stated-vs-causal faithfulness test.** We compare which cues judges *say* drove their judgement with which "
         "cues *actually* move it, giving precision and recall of verbalised tells.",
@@ -198,8 +198,8 @@ ETHICS_APPX = [
           "a constrained context instruction, and manual inspection of sampled variants, but cannot rule out residual "
           "leakage. Our wrapper itself frames the task as classification, which one judge occasionally cited as a reason."),
     ("p", "**Dual use.** A ranked list of tells could help someone disguise evaluations from models, or could be used to "
-          "help a model detect evaluations. We think the main use is the intended one — helping evaluation builders "
-          "remove the cheapest giveaways so that safety evaluations measure deployment behaviour — and the cues we "
+          "help a model detect evaluations. We think the main use is the intended one: helping evaluation builders "
+          "remove the cheapest giveaways so that safety evaluations measure deployment behaviour. The cues we "
           "study are surface features already discussed publicly. We do not train or fine-tune any model, and we "
           "release only prompts drawn from public datasets."),
     ("p", "**Personal data.** WildChat is PII-scrubbed by its authors; we additionally dropped prompts containing URLs, "
@@ -212,16 +212,6 @@ NEW_WORK_APPX = [
     ("h3", "Appendix C. Statement of new work"),
     ("p", "All code, data selection, experiments, analysis and writing were produced during the sprint (13–15 November "
           "2026). No preexisting code was used. The prompt pools come from public datasets [9, 10, 11]."),
-]
-
-LLM_USAGE = [
-    ("h2", "LLM Usage Statement"),
-    ("p", f"LLMs are part of the method: {REWRITER} performs the minimal-edit rewrites, {CLASSIFIER} tags stated "
-          "reasons, and three judge models produce the measurements (all prompts in Appendix B). Separately, I used Claude (Anthropic) as a "
-          "coding and writing assistant to debug the pipeline, run the experiments, draft sections of this report and perform "
-          "the 30-item classifier spot-check (so that check is LLM-vs-LLM agreement, not human validation). "
-          "All numbers in the report are produced by `analyze.py` from logged model outputs; I checked the results, "
-          "references and claims, and I take responsibility for the content."),
 ]
 
 # ------------------------------------------------------------------ results (all numbers read from summary.json)
@@ -384,7 +374,7 @@ DISCUSSION = [
           "power) remains a strong tell after all surface cues are gone, which suggests realism work for these "
           "evaluations has to change the scenario, not the formatting."),
     ("p", "**Implications for trusting model explanations.** The judges’ stated reasons are neither random nor "
-          "fabricated: when an added cue moves the judgement, the judges usually name it. They fail in a subtler way — "
+          "fabricated: when an added cue moves the judgement, the judges usually name it. They fail in a subtler way: "
           "by presenting each tell as decisive when it is individually unnecessary, and by under-reporting writing "
           "register. Stated reasons are a reasonable list of candidates, but a poor guide to what to change; single-cue "
           "interventions like ours are a cheap way to check them."),
@@ -438,7 +428,7 @@ INTRO[-1][1][-1] = ("**Findings.** No single cue is necessary for an evaluation 
                     "all surface edits; and judges’ stated reasons name real tells while hiding that each is individually "
                     "unnecessary.")
 
-# template order: ... Conclusion, Code and Data, References, Appendix, LLM Usage Statement
+# template order: ... Conclusion, Code and Data, References, Appendix
 BLOCKS = (INTRO + RELATED + METHODS + RESULTS + DISCUSSION + CONCLUSION + CODE_DATA
           + [("h2", "References")] + [("ref", r) for r in REFS]
-          + [("pagebreak",), ("h2", "Appendix")] + ETHICS_APPX + PROMPTS_APPX + NEW_WORK_APPX + LLM_USAGE)
+          + [("pagebreak",), ("h2", "Appendix")] + ETHICS_APPX + PROMPTS_APPX + NEW_WORK_APPX)
